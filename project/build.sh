@@ -34,7 +34,7 @@ GLOBAL_PARTITIONS=""
 GLOBAL_SDK_VERSION=""
 WIFI_NEW_CONF=${SDK_APP_DIR}/wifi_app/wpa_supplicant_new.conf
 WIFI_CONF=${SDK_APP_DIR}/wifi_app/wpa_supplicant.conf
-BUILDROOT_PATH=${SDK_SYSDRV_DIR}/source/buildroot/buildroot-2023.02.6
+BUILDROOT_PATH=${SDK_SYSDRV_DIR}/source/buildroot/buildroot-2025.02.4
 BUILDROOT_CONFIG_FILE=${BUILDROOT_PATH}/.config
 SDK_CONFIG_DIR=${SDK_ROOT_DIR}/config
 DTS_CONFIG=${SDK_CONFIG_DIR}/dts_config
@@ -351,7 +351,7 @@ function choose_target_board() {
 function build_select_board() {
 	RK_TARGET_BOARD_ARRAY=($(
 		cd ${TARGET_PRODUCT_DIR}/
-		ls BoardConfig_*/BoardConfig*.mk | sort 
+		ls BoardConfig_*/BoardConfig*.mk | sort
 	))
 
 	RK_TARGET_BOARD_ARRAY_LEN=${#RK_TARGET_BOARD_ARRAY[@]}
