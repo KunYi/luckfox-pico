@@ -12,8 +12,6 @@
 
 #define RKMODULE_API_VERSION		KERNEL_VERSION(0, 1, 0x2)
 
-/* using for rk3588 dual isp unite */
-#define RKMOUDLE_UNITE_EXTEND_PIXEL	128
 /* using for rv1109 and rv1126 */
 #define RKMODULE_EXTEND_LINE		24
 
@@ -37,6 +35,7 @@
 #define RKMODULE_INTERNAL_MASTER_MODE	"internal_master"
 #define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
 #define RKMODULE_SLAVE_MODE		"slave"
+#define RKMODULE_SOFT_SYNC_MODE		"soft_sync"
 
 #define RKMODULE_CAMERA_STANDBY_HW	"rockchip,camera-module-stb"
 
@@ -194,14 +193,23 @@
 #define RKCIS_CMD_FLASH_LIGHT_CTRL  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 43, struct rk_light_param)
 
+#define RKCIS_CMD_SELECT_SETTING  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 44, struct rk_sensor_setting)
+
+#define RKMODULE_GET_EXP_DELAY       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 45, struct rkmodule_exp_delay)
+
+#define RKMODULE_GET_EXP_INFO       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 46, struct rkmodule_exp_info)
+
 struct rkmodule_i2cdev_info {
-	u8 slave_addr;
+	__u8 slave_addr;
 } __attribute__ ((packed));
 
 struct rkmodule_dev_info {
 	union {
 		struct rkmodule_i2cdev_info i2c_dev;
-		u32 reserved[8];
+		__u32 reserved[8];
 	};
 } __attribute__ ((packed));
 
@@ -422,29 +430,25 @@ enum rkmodule_hdr_mode {
 	HDR_COMPR,
 };
 
-enum rkmodule_hdr_compr_segment {
-	HDR_COMPR_SEGMENT_4 = 4,
-	HDR_COMPR_SEGMENT_12 = 12,
-	HDR_COMPR_SEGMENT_16 = 16,
-};
+#define HDR_COMPR_POINT_MAX 32
 
 /* rkmodule_hdr_compr
  * linearised and compressed data for hdr: data_src = K * data_compr + XX
  *
- * bit: bit of src data, max 20 bit.
- * segment: linear segment, support 4, 6 or 16.
+ * src_bit: bit of src data, max 20 bit.
+ * point: linear point number, max 32 for rk3576.
  * k_shift: left shift bit of slop amplification factor, 2^k_shift, [0 15].
  * slope_k: K * 2^k_shift.
- * data_src_shitf: left shift bit of source data, data_src = 2^data_src_shitf
+ * data_src: source data.
  * data_compr: compressed data.
  */
 struct rkmodule_hdr_compr {
-	enum rkmodule_hdr_compr_segment segment;
-	__u8 bit;
+	__u8 point;
+	__u8 src_bit;
 	__u8 k_shift;
-	__u8 data_src_shitf[HDR_COMPR_SEGMENT_16];
-	__u16 data_compr[HDR_COMPR_SEGMENT_16];
-	__u32 slope_k[HDR_COMPR_SEGMENT_16];
+	__u16 data_compr[HDR_COMPR_POINT_MAX];
+	__u32 data_src[HDR_COMPR_POINT_MAX];
+	__u32 slope_k[HDR_COMPR_POINT_MAX];
 };
 
 /**
@@ -464,6 +468,14 @@ enum hdr_esp_mode {
 enum rkmodule_csi_dsi_seq {
 	RKMODULE_CSI_INPUT = 0,
 	RKMODULE_DSI_INPUT,
+};
+
+/*
+ * DSI input mode
+ */
+enum rkmodule_dsi_mode {
+	RKMODULE_DSI_VIDEO = 0,
+	RKMODULE_DSI_COMMAND,
 };
 
 /**
@@ -677,6 +689,7 @@ struct rkmodule_channel_info {
 	__u32 bus_fmt;
 	__u32 data_type;
 	__u32 data_bit;
+	__u32 field;
 } __attribute__ ((packed));
 
 /*
@@ -693,12 +706,16 @@ struct rkmodule_channel_info {
  *         id3 reserved, can config by PAD3
  *
  * link to isp, the connection relationship is as follows
+ * PAD0 link to isp
+ * PAD1 link to csi rawwr0                             | hdr x2:L x3:M
+ * PAD2 link to csi rawwr1 if rv1126, rawwr3 if rk3568 | hdr      x3:L
+ * PAD3 link to csi rawwr2                             | hdr x2:M x3:S
  */
 enum rkmodule_max_pad {
-	PAD0, /* link to isp */
-	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
-	PAD2, /* link to csi wr1 | hdr      x3:L */
-	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
+	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
 	PAD_MAX,
 };
 
@@ -710,13 +727,14 @@ enum rkmodule_sync_mode {
 	EXTERNAL_MASTER_MODE,
 	INTERNAL_MASTER_MODE,
 	SLAVE_MODE,
+	SOFT_SYNC_MODE,
 };
 
 struct rkmodule_mclk_data {
-	u32 enable;
-	u32 mclk_index;
-	u32 mclk_rate;
-	u32 reserved[8];
+	__u32 enable;
+	__u32 mclk_index;
+	__u32 mclk_rate;
+	__u32 reserved[8];
 };
 
 /*
@@ -766,14 +784,14 @@ enum csi2_dphy_vendor {
 };
 
 struct rkmodule_csi_dphy_param {
-	u32 vendor;
-	u32 lp_vol_ref;
-	u32 lp_hys_sw[DPHY_MAX_LANE];
-	u32 lp_escclk_pol_sel[DPHY_MAX_LANE];
-	u32 skew_data_cal_clk[DPHY_MAX_LANE];
-	u32 clk_hs_term_sel;
-	u32 data_hs_term_sel[DPHY_MAX_LANE];
-	u32 reserved[32];
+	__u32 vendor;
+	__u32 lp_vol_ref;
+	__u32 lp_hys_sw[DPHY_MAX_LANE];
+	__u32 lp_escclk_pol_sel[DPHY_MAX_LANE];
+	__u32 skew_data_cal_clk[DPHY_MAX_LANE];
+	__u32 clk_hs_term_sel;
+	__u32 data_hs_term_sel[DPHY_MAX_LANE];
+	__u32 reserved[32];
 };
 
 struct rkmodule_sensor_fmt {
@@ -832,6 +850,47 @@ struct rk_light_param {
 	__u64 duty_cycle;
 	__u64 period;
 	__u32 polarity;
+} __attribute__ ((packed));
+
+struct rk_sensor_setting {
+	__u32 width;
+	__u32 height;
+	__u32 fps;
+	__u32 fmt;
+	__u32 mode;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_delay {
+	__u32 exp_delay;
+	__u32 gain_delay;
+	__u32 vts_delay;
+	__u32 dcg_delay;
+	__u32 reserved[2];
+} __attribute__ ((packed));
+
+enum rkmodule_gain_mode_e {
+	RKMODULE_GAIN_MODE_LINEAR,
+	RKMODULE_GAIN_MODE_DB,
+};
+
+struct rkmodule_gain_mode {
+	__u32 gain_mode;
+	__u32 factor;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_info {
+	__u32 exp[3];
+	__u32 gain[3];
+	__u32 exp_reg[3];
+	__u32 gain_reg[3];
+	__u32 hts;
+	__u32 vts;
+	__u32 pclk;
+	__u32 dcg_used;
+	__u32 dcg_val[3];
+	struct rkmodule_dcg_ratio dcg_ratio;
+	struct rkmodule_gain_mode gain_mode;
+	__u32 reserved[6];
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

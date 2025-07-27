@@ -634,6 +634,7 @@ static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
 	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
+	struct rkisp_isp_params_val_v3x *priv_val = params_vdev->priv_val;
 	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
 
 	if (en == !!(val & ISP_LSC_EN))
@@ -641,9 +642,12 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 
 	if (en) {
 		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN, id);
-		if (params_vdev->dev->hw_dev->is_single)
-			isp_lsc_matrix_cfg_sram(params_vdev,
-						&params_rec->others.lsc_cfg, false, id);
+		if (params_vdev->dev->hw_dev->is_single) {
+			if (!in_interrupt())
+				isp_lsc_matrix_cfg_sram(params_vdev, &params_rec->others.lsc_cfg, false, id);
+			else if (id == ISP3_LEFT)
+				tasklet_schedule(&priv_val->lsc_tasklet);
+		}
 	} else {
 		isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN, id);
 		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(8), id);
@@ -3430,6 +3434,8 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 i, value;
 
 	value = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, id);
+	if (value & BIT(1) && !arg->bypass_en)
+		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_RAW3D_FST_FRAME, id);
 	value &= ISP3X_MODULE_EN;
 
 	if (dev->rd_mode == HDR_NORMAL ||
@@ -3609,6 +3615,8 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	if (i == ISP3X_MESH_BUF_NUM) {
+		if (arg->bypass_en)
+			goto end;
 		dev_err(dev->dev, "cannot find cac buf fd(%d)\n", arg->buf_fd);
 		return;
 	}
@@ -3632,19 +3640,27 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, arg->vsize, ISP3X_MI_LUT_CAC_RD_V_SIZE, id);
 	if (ctrl & ISP3X_CAC_EN)
 		ctrl |= ISP3X_CAC_LUT_EN;
+end:
 	isp3_param_write(params_vdev, ctrl, ISP3X_CAC_CTRL, id);
 }
 
 static void
 isp_cac_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
-	u32 val;
+	struct rkisp_isp_params_val_v3x *priv_val = params_vdev->priv_val;
+	u32 val, ctrl = isp3_param_read(params_vdev, ISP3X_CAC_CTRL, id);
 
-	val = isp3_param_read(params_vdev, ISP3X_CAC_CTRL, id);
-	val &= ~ISP3X_CAC_EN;
-	if (en)
-		val |= ISP3X_CAC_EN | ISP3X_CAC_LUT_EN;
-	isp3_param_write(params_vdev, val, ISP3X_CAC_CTRL, id);
+	if (en == !!(ctrl & ISP3X_CAC_EN))
+		return;
+
+	ctrl &= ~(ISP3X_CAC_EN | ISP3X_CAC_LUT_EN | ISP3X_SELF_FORCE_UPD);
+	if (en) {
+		ctrl |= ISP3X_CAC_EN;
+		val = priv_val->buf_cac_idx[id];
+		if (priv_val->buf_cac[id][val].vaddr)
+			ctrl |= ISP3X_CAC_LUT_EN;
+	}
+	isp3_param_write(params_vdev, ctrl, ISP3X_CAC_CTRL, id);
 }
 
 static void
@@ -3993,10 +4009,11 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_ops_v3x *)params_vdev->priv_ops;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
-	params_vdev->cur_frame_id = new_params->frame_id;
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
+	params_vdev->cur_frame_id = new_params->frame_id;
+	params_vdev->exposure = new_params->exposure;
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_cfg_update:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_cfg_update);
@@ -4081,7 +4098,7 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static
-void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
 	struct isp3x_isp_params_cfg *params = params_vdev->isp3x_params;
 

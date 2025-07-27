@@ -18,6 +18,14 @@ config NO_GKI
 
 	  If unsure, say Y.
 
+config ROCKCHIP_DISABLE_UNUSED
+	tristate "Rockchip Disable Unused"
+	default m if GKI_HACKS_TO_FIX
+	help
+	  Disable unused clk and power down after module init.
+
+	  If unsure, say "N".
+
 #
 # Rockchip Soc drivers
 #
@@ -43,6 +51,12 @@ config ROCKCHIP_CPUINFO
 	  Serial can read from /proc/cpuinfo.
 
 	  If unsure, say N.
+
+config ROCKCHIP_CSU
+	tristate "Rockchip Clock Subunit Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the clock subunit driver for Rockchip SoCs.
 
 config ROCKCHIP_GRF
 	tristate "Rockchip General Register Files support"
@@ -158,6 +172,7 @@ config ROCKCHIP_RAMDISK
 
 config ROCKCHIP_SUSPEND_MODE
 	tristate "Rockchip suspend mode config"
+	depends on SUSPEND
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.
 
@@ -189,6 +204,12 @@ config ROCKCHIP_MTD_VENDOR_STORAGE
 	help
 	  Say y here to enable rockchip mtd vendor storage support.
 
+config ROCKCHIP_RAM_VENDOR_STORAGE
+	tristate "Rockchip ram vendor storage support"
+	depends on ROCKCHIP_VENDOR_STORAGE
+	help
+	  Say y here to enable rockchip ram vendor storage support.
+
 config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	bool "Rockchip vendor storage update loader support"
 	default n
@@ -208,7 +229,7 @@ config ROCKCHIP_DEBUG
 config ROCKCHIP_MINI_KERNEL
 	bool "Rockchip Mini Kernel support"
 	select NO_GKI
-	default y if CPU_RV1106 || CPU_RV1126
+	default y if CPU_RV1103B || CPU_RV1106 || CPU_RV1126
 	help
 	  Say y here to enable Rockchip mini kernel support.
 	  This option make the kernel size smaller.
@@ -271,6 +292,8 @@ config RK_MEMBLOCK_PROCFS
 	help
 	  Extend memblock procfs to show size of each memblock, and shows the
 	  result of total size by KiB format.
+
+source "drivers/soc/rockchip/minidump/Kconfig"
 
 endmenu
 

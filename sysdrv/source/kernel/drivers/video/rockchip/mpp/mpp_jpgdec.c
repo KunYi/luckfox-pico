@@ -558,7 +558,7 @@ static struct mpp_dev_ops jpgdec_v1_dev_ops = {
 };
 
 static const struct mpp_dev_var jpgdec_v1_data = {
-	.device_type = MPP_DEVICE_JPGDEC,
+	.device_type = MPP_DEVICE_RKJPEGD,
 	.hw_info = &jpgdec_v1_hw_info,
 	.trans_info = jpgdec_v1_trans,
 	.hw_ops = &jpgdec_v1_hw_ops,
@@ -602,7 +602,7 @@ static int jpgdec_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
-					mpp_dev_isr_sched,
+					NULL,
 					IRQF_SHARED,
 					dev_name(dev), mpp);
 	if (ret) {
@@ -638,6 +638,7 @@ struct platform_driver rockchip_jpgdec_driver = {
 	.driver = {
 		.name = JPGDEC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_jpgdec_dt_match),
+		.pm = &mpp_common_pm_ops,
 	},
 };
 EXPORT_SYMBOL(rockchip_jpgdec_driver);

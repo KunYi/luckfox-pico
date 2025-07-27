@@ -960,18 +960,16 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work)
 {
 	unsigned int cur_frame_id = -1;
-	struct rkisp_buffer *cur_buf = stats_vdev->cur_buf;
+	struct rkisp_buffer *cur_buf = NULL;
 	struct rkisp3x_isp_stat_buffer *cur_stat_buf = NULL;
-	struct rkisp_stats_ops_v3x *ops =
-		(struct rkisp_stats_ops_v3x *)stats_vdev->priv_ops;
+	struct rkisp_stats_ops_v3x *ops = stats_vdev->priv_ops;
 	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
-	int ret = 0;
 	u32 size = sizeof(struct rkisp3x_isp_stat_buffer);
 
 	cur_frame_id = meas_work->frame_id;
 	spin_lock(&stats_vdev->rd_lock);
 	/* get one empty buffer */
-	if (!cur_buf) {
+	if (!stats_vdev->rdbk_drop) {
 		if (!list_empty(&stats_vdev->stat)) {
 			cur_buf = list_first_entry(&stats_vdev->stat,
 						   struct rkisp_buffer, queue);
@@ -981,8 +979,7 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 	spin_unlock(&stats_vdev->rd_lock);
 
 	if (cur_buf) {
-		cur_stat_buf =
-			(struct rkisp3x_isp_stat_buffer *)(cur_buf->vaddr[0]);
+		cur_stat_buf = cur_buf->vaddr[0];
 		cur_stat_buf->frame_id = cur_frame_id;
 		cur_stat_buf->params_id = params_vdev->cur_frame_id;
 	}
@@ -1001,38 +998,38 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	ops->get_rawaf_meas(stats_vdev, cur_stat_buf, 0);
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAWB)
-		ret |= ops->get_rawawb_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawawb_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_BIG)
-		ret |= ops->get_rawae3_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawae3_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_BIG)
-		ret |= ops->get_rawhst3_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawhst3_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH0)
-		ret |= ops->get_rawae0_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawae0_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH1)
-		ret |= ops->get_rawae1_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawae1_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH2)
-		ret |= ops->get_rawae2_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawae2_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH0)
-		ret |= ops->get_rawhst0_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawhst0_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH1)
-		ret |= ops->get_rawhst1_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawhst1_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH2)
-		ret |= ops->get_rawhst2_meas(stats_vdev, cur_stat_buf, 0);
+		ops->get_rawhst2_meas(stats_vdev, cur_stat_buf, 0);
 
 	if (meas_work->isp_ris & ISP3X_FRAME) {
-		ret |= ops->get_bls_stats(stats_vdev, cur_stat_buf, 0);
-		ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 0);
+		ops->get_bls_stats(stats_vdev, cur_stat_buf, 0);
+		ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 0);
 	}
 
-	if (stats_vdev->dev->hw_dev->unite) {
+	if (stats_vdev->dev->hw_dev->unite == ISP_UNITE_TWO) {
 		size *= 2;
 		if (cur_buf) {
 			cur_stat_buf++;
@@ -1040,38 +1037,39 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 		}
 		ops->get_rawaf_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWAWB)
-			ret |= ops->get_rawawb_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawawb_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_BIG)
-			ret |= ops->get_rawae3_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawae3_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_BIG)
-			ret |= ops->get_rawhst3_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawhst3_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH0)
-			ret |= ops->get_rawae0_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawae0_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH1)
-			ret |= ops->get_rawae1_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawae1_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_CH2)
-			ret |= ops->get_rawae2_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawae2_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH0)
-			ret |= ops->get_rawhst0_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawhst0_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH1)
-			ret |= ops->get_rawhst1_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawhst1_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_CH2)
-			ret |= ops->get_rawhst2_meas(stats_vdev, cur_stat_buf, 1);
+			ops->get_rawhst2_meas(stats_vdev, cur_stat_buf, 1);
 		if (meas_work->isp_ris & ISP3X_FRAME) {
-			ret |= ops->get_bls_stats(stats_vdev, cur_stat_buf, 1);
-			ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 1);
+			ops->get_bls_stats(stats_vdev, cur_stat_buf, 1);
+			ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 1);
 		}
 	}
-
-	if (cur_buf && !ret) {
+	v4l2_dbg(4, rkisp_debug, &stats_vdev->dev->v4l2_dev,
+		 "%s id:%d seq:%d params_id:%d ris:0x%x buf:%p meas_type:0x%x\n",
+		 __func__, stats_vdev->dev->unite_index,
+		 cur_frame_id, params_vdev->cur_frame_id, meas_work->isp3a_ris,
+		 cur_buf, !cur_stat_buf ? 0 : cur_stat_buf->meas_type);
+	if (cur_buf) {
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0, size);
 		cur_buf->vb.sequence = cur_frame_id;
 		cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-		cur_buf = NULL;
 	}
-
-	stats_vdev->cur_buf = cur_buf;
 }
 
 static void

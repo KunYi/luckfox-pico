@@ -155,6 +155,11 @@ enum nvme_quirks {
 	 * Reports garbage in the namespace identifiers (eui64, nguid, uuid).
 	 */
 	NVME_QUIRK_BOGUS_NID			= (1 << 18),
+
+	/*
+	 * Limit io queue depth to 32
+	 */
+	NVME_QUIRK_LIMIT_IOQD32			= (1 << 31),
 };
 
 /*
@@ -353,6 +358,11 @@ struct nvme_ctrl {
 
 	struct nvme_fault_inject fault_inject;
 };
+
+static inline enum nvme_ctrl_state nvme_ctrl_state(struct nvme_ctrl *ctrl)
+{
+	return READ_ONCE(ctrl->state);
+}
 
 enum nvme_iopolicy {
 	NVME_IOPOLICY_NUMA,
@@ -749,7 +759,7 @@ static inline void nvme_trace_bio_complete(struct request *req,
 {
 	struct nvme_ns *ns = req->q->queuedata;
 
-	if (req->cmd_flags & REQ_NVME_MPATH)
+	if ((req->cmd_flags & REQ_NVME_MPATH) && req->bio)
 		trace_block_bio_complete(ns->head->disk->queue, req->bio);
 }
 
