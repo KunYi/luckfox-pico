@@ -2422,18 +2422,18 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	}
 
 	if (dp->hpd_gpiod) {
-		ret = devm_request_threaded_irq(dev,
-						gpiod_to_irq(dp->hpd_gpiod),
-						NULL,
-						analogix_dp_hpd_irq_handler,
-						IRQF_TRIGGER_RISING |
-						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT,
-						"analogix-hpd", dp);
-		if (ret) {
-			dev_err(dev, "failed to request hpd IRQ: %d\n", ret);
-			return ERR_PTR(ret);
-		}
+		/*
+		 * Set up the hotplug GPIO from the device tree as an interrupt.
+		 * Simply specifying a different interrupt in the device tree
+		 * doesn't work since we handle hotplug rather differently when
+		 * using a GPIO.  We also need the actual GPIO specifier so
+		 * that we can get the current state of the GPIO.
+		 */
+		dp->irq = gpiod_to_irq(dp->hpd_gpiod);
+		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN;
+	} else {
+		dp->irq = platform_get_irq(pdev, 0);
+		irq_flags = IRQF_NO_AUTOEN;
 	}
 
 	dp->irq = platform_get_irq(pdev, 0);
@@ -2450,21 +2450,6 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ERR_PTR(ret);
 	}
-
-	dp->extcon = devm_extcon_dev_allocate(dev, analogix_dp_cable);
-	if (IS_ERR(dp->extcon)) {
-		dev_err(dev, "failed to allocate extcon device\n");
-		return ERR_CAST(dp->extcon);
-	}
-
-	ret = devm_extcon_dev_register(dev, dp->extcon);
-	if (ret) {
-		dev_err(dev, "failed to register extcon device\n");
-		return ERR_PTR(ret);
-	}
-
-	dp->bridge.driver_private = dp;
-	dp->bridge.funcs = &analogix_dp_bridge_funcs;
 
 	return dp;
 }
