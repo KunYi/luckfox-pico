@@ -4,7 +4,11 @@ case $1 in
 start)
 	if [ "$(hwclock | grep "1969")" ]; then
 		echo "RTC time calibration"
-		date -s 2024-01-01
+		date -s 2025-07-01
+		hwclock -w
+	elif [ "$(hwclock | grep "2021")" ]; then
+		echo "RTC time calibration"
+		date -s 2025-07-01
 		hwclock -w
 	else
 		echo "RTC does not require time calibration"
