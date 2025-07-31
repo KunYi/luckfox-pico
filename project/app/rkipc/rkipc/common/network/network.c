@@ -701,19 +701,28 @@ int rk_network_get_cable_state() {
 			memset(cmd1, 0, 32);
 			memset(cmd2, 0, 32);
 			memset(cmd3, 0, 32);
-			sprintf(cmd1, "udhcpc -i %s -T 1 -A 0 -b -q", name);
-			sprintf(cmd2, "ifconfig %s 0.0.0.0", name);
-			sprintf(cmd3, "udhcpc -i eth0 -T 1 -A 0 -b -q");
+			snprintf(cmd1, sizeof(cmd1), "udhcpc -i %s -T 1 -A 0 -b -q", name);
+			snprintf(cmd2, sizeof(cmd2), "ifconfig %s 0.0.0.0", name);
+			snprintf(cmd3, sizeof(cmd3), "udhcpc -i eth0 -T 1 -A 0 -b -q");
 
 			if (ifinfo->ifi_flags & IFF_LOWER_UP) {
 				status = 1;
 				system("killall -9 udhcpc");
 				system("route del default gw 0.0.0.0");
 				system("cat /dev/null > /etc/resolv.conf");
-				system(cmd1);
-				system(cmd3);
+				if (strncmp(name, "usb", 3) != 0) {
+					// ifname is not usbN
+					LOG_DEBUG("Run command: %s\n", cmd1);
+					system(cmd1);
+				}
+				if (strncmp(name, "eth0", 4) != 0) {
+					// ifname is ethN
+					LOG_DEBUG("Run command: %s\n", cmd3);
+					system(cmd3);
+				}
 			} else {
 				status = 0;
+				LOG_DEBUG("Run command: %s\n", cmd2);
 				system(cmd2);
 			}
 
