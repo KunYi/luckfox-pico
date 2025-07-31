@@ -155,57 +155,57 @@ int generate_date_time(const char *fmt, wchar_t *result) {
 		wid = week[0] - '0';
 		switch (wid) {
 		case 1:
-			sprintf(week_string, " 星期一");
+			snprintf(week_string, sizeof(week_string)," 星期一");
 			break;
 		case 2:
-			sprintf(week_string, " 星期二");
+			snprintf(week_string, sizeof(week_string), " 星期二");
 			break;
 		case 3:
-			sprintf(week_string, " 星期三");
+			snprintf(week_string, sizeof(week_string), " 星期三");
 			break;
 		case 4:
-			sprintf(week_string, " 星期四");
+			snprintf(week_string, sizeof(week_string), " 星期四");
 			break;
 		case 5:
-			sprintf(week_string, " 星期五");
+			snprintf(week_string, sizeof(week_string),	 " 星期五");
 			break;
 		case 6:
-			sprintf(week_string, " 星期六");
+			snprintf(week_string, sizeof(week_string), " 星期六");
 			break;
 		case 7:
-			sprintf(week_string, " 星期日");
+			snprintf(week_string, sizeof(week_string), " 星期日");
 			break;
 		default:
 			LOG_ERROR("osd strftime week error\n");
-			sprintf(week_string, " 星期*");
+			snprintf(week_string, sizeof(week_string), " 星期*");
 			break;
 		}
 	} else if (strstr(fmt, OSD_FMT_WEEK1)) {
 		strftime(week, sizeof(week), "%A", localtime(&curtime));
-		sprintf(week_string, " %s", week);
+		snprintf(week_string, sizeof(week_string), " %s", week);
 	}
 
 	wchar_cnt = sizeof(ymd_string) / sizeof(wchar_t);
 	if (strstr(fmt, OSD_FMT_CHR)) {
 		if (strstr(fmt, OSD_FMT_YMD0))
-			sprintf(ymd_string, "%s-%s-%s", year, month, day);
+			snprintf(ymd_string, sizeof(ymd_string), "%s-%s-%s", year, month, day);
 		else if (strstr(fmt, OSD_FMT_YMD1))
-			sprintf(ymd_string, "%s-%s-%s", month, day, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s-%s-%s", month, day, year);
 		else if (strstr(fmt, OSD_FMT_YMD2))
-			sprintf(ymd_string, "%s-%s-%s", day, month, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s-%s-%s", day, month, year);
 		else if (strstr(fmt, OSD_FMT_YMD3))
-			sprintf(ymd_string, "%s/%s/%s", year, month, day);
+			snprintf(ymd_string, sizeof(ymd_string), "%s/%s/%s", year, month, day);
 		else if (strstr(fmt, OSD_FMT_YMD4))
-			sprintf(ymd_string, "%s/%s/%s", month, day, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s/%s/%s", month, day, year);
 		else if (strstr(fmt, OSD_FMT_YMD5))
-			sprintf(ymd_string, "%s/%s/%s", day, month, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s/%s/%s", day, month, year);
 	} else {
 		if (strstr(fmt, OSD_FMT_YMD0))
-			sprintf(ymd_string, "%s年%s月%s日", year, month, day);
+			snprintf(ymd_string, sizeof(ymd_string), "%s年%s月%s日", year, month, day);
 		else if (strstr(fmt, OSD_FMT_YMD1))
-			sprintf(ymd_string, "%s月%s日%s年", month, day, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s月%s日%s年", month, day, year);
 		else if (strstr(fmt, OSD_FMT_YMD2))
-			sprintf(ymd_string, "%s日%s月%s年", day, month, year);
+			snprintf(ymd_string, sizeof(ymd_string), "%s日%s月%s年", day, month, year);
 	}
 
 	snprintf(time_string, MAX_WCH_BYTE, "%s%s %s", ymd_string, week_string, hms);
@@ -230,7 +230,7 @@ static void *osd_time_server(void *arg) {
 
 	memset(&osd_data, 0, sizeof(osd_data));
 	for (int i = 0; i < MAX_OSD_NUM; i++) {
-		snprintf(entry, 127, "osd.%d:type", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:type", i);
 		osd_type = rk_param_get_string(entry, NULL);
 		if (osd_type == NULL)
 			continue;
@@ -240,11 +240,11 @@ static void *osd_time_server(void *arg) {
 	LOG_INFO("osd_time_id is %d\n", osd_time_id);
 
 	// init
-	snprintf(entry, 127, "osd.%d:enabled", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:enabled", osd_time_id);
 	osd_data.enable = rk_param_get_int(entry, 0);
-	snprintf(entry, 127, "osd.%d:position_x", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:position_x", osd_time_id);
 	osd_data.origin_x = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_x_rate));
-	snprintf(entry, 127, "osd.%d:position_y", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:position_y", osd_time_id);
 	osd_data.origin_y = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_y_rate));
 	osd_data.text.font_size = rk_param_get_int("osd.common:font_size", -1);
 	sscanf(rk_param_get_string("osd.common:font_color", NULL), "%x", &osd_data.text.font_color);
@@ -255,11 +255,11 @@ static void *osd_time_server(void *arg) {
 
 	// get time
 	memset(osd_data.text.format, 0, 128);
-	snprintf(entry, 127, "osd.%d:date_style", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:date_style", osd_time_id);
 	date_style = rk_param_get_string(entry, NULL);
-	snprintf(entry, 127, "osd.%d:time_style", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:time_style", osd_time_id);
 	time_style = rk_param_get_string(entry, NULL);
-	snprintf(entry, 127, "osd.%d:display_week_enabled", osd_time_id);
+	snprintf(entry, sizeof(entry) - 1, "osd.%d:display_week_enabled", osd_time_id);
 	int display_week_enabled = rk_param_get_int(entry, 0);
 	if (time_style) {
 		if (!strcmp(time_style, "12hour")) {
@@ -334,23 +334,23 @@ int rk_osd_init() {
 	LOG_DEBUG("g_x_rate is %lf, g_y_rate is %lf\n", g_x_rate, g_y_rate);
 
 	for (int i = 0; i < MAX_OSD_NUM; i++) {
-		snprintf(entry, 127, "osd.%d:type", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:type", i);
 		osd_type = rk_param_get_string(entry, NULL);
 		if (osd_type == NULL)
 			continue;
 		LOG_DEBUG("i is %d, osd_type is %s\n", i, osd_type);
 
-		snprintf(entry, 127, "osd.%d:enabled", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:enabled", i);
 		osd_data.enable = rk_param_get_int(entry, 0);
 		if (osd_data.enable == 0)
 			continue;
-		snprintf(entry, 127, "osd.%d:position_x", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:position_x", i);
 		osd_data.origin_x = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_x_rate));
-		snprintf(entry, 127, "osd.%d:position_y", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:position_y", i);
 		osd_data.origin_y = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_y_rate));
 
 		if (!strcmp(osd_type, "image")) {
-			snprintf(entry, 127, "osd.%d:image_path", i);
+			snprintf(entry, sizeof(entry) - 1, "osd.%d:image_path", i);
 			osd_data.image = rk_param_get_string(entry, NULL);
 			// load bmp
 			fill_image(&osd_data);
@@ -358,9 +358,9 @@ int rk_osd_init() {
 			if (osd_data.buffer)
 				free(osd_data.buffer);
 		} else if (!strcmp(osd_type, "privacyMask")) {
-			snprintf(entry, 127, "osd.%d:width", i);
+			snprintf(entry, sizeof(entry) - 1, "osd.%d:width", i);
 			osd_data.width = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_x_rate));
-			snprintf(entry, 127, "osd.%d:height", i);
+			snprintf(entry, sizeof(entry) - 1, "osd.%d:height", i);
 			osd_data.height = UPALIGNTO16((int)(rk_param_get_int(entry, -1) * g_y_rate));
 			while (osd_data.origin_x + osd_data.width > video_width) {
 				osd_data.width -= 16;
@@ -372,7 +372,7 @@ int rk_osd_init() {
 			    osd_data.height < 0) {
 				continue;
 			}
-			snprintf(entry, 127, "osd.%d:style", i);
+			snprintf(entry, sizeof(entry) - 1, "osd.%d:style", i);
 			const char *style = rk_param_get_string(entry, "cover");
 			if (!strcmp(style, "cover") && rk_osd_cover_create_)
 				rk_osd_cover_create_(i, &osd_data);
@@ -392,7 +392,7 @@ int rk_osd_init() {
 				g_osd_font_already_set = 1;
 			}
 			if (!strcmp(osd_type, "channelName") || !strcmp(osd_type, "character")) {
-				snprintf(entry, 127, "osd.%d:display_text", i);
+				snprintf(entry, sizeof(entry) - 1, "osd.%d:display_text", i);
 				const char *display_text = rk_param_get_string(entry, NULL);
 				if (iconv_utf8_to_wchar(display_text, osd_data.text.wch))
 					continue;
@@ -447,7 +447,7 @@ int rk_osd_deinit() {
 		g_osd_signal = NULL;
 	}
 	for (int i = 0; i < MAX_OSD_NUM; i++) {
-		snprintf(entry, 127, "osd.%d:type", i);
+		snprintf(entry, sizeof(entry) - 1, "osd.%d:type", i);
 		osd_type = rk_param_get_string(entry, NULL);
 		if (osd_type == NULL)
 			continue;
@@ -464,7 +464,7 @@ int rk_osd_deinit() {
 		} else if (!strcmp(osd_type, "character")) {
 			rk_osd_bmp_destroy_(i);
 		} else if (!strcmp(osd_type, "privacyMask")) {
-			snprintf(entry, 127, "osd.%d:style", i);
+			snprintf(entry, sizeof(entry) - 1, "osd.%d:style", i);
 			const char *style = rk_param_get_string(entry, "cover");
 			if (!strcmp(style, "cover") && rk_osd_cover_destroy_)
 				rk_osd_cover_destroy_(i);

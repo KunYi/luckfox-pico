@@ -339,7 +339,7 @@ static int get_ssid_from_list_network(RK_WIFI_SAVED_INFO_s *info, int row, int c
 	pr_info("%s: row(%d) = %s\n", __func__, row, str);
 
 	memset(cmd, 0, 128);
-	sprintf(cmd, "%d", info->id);
+	snprintf(cmd, sizeof(cmd), "%d", info->id);
 	start = strlen(cmd);
 
 	if ((bssid = strstr(str, info->bssid)) == NULL) {
@@ -990,7 +990,7 @@ static void format_wifiinfo(int flag, char *info) {
 
 	if (flag == 0) {
 		for (int i = 0; i < strlen(info); i++) {
-			sprintf(temp + 2 * i, "%02x", info[i]);
+			snprintf(temp + 2 * i, sizeof(temp) - 2 * i, "%02x", info[i]);
 		}
 		temp[strlen(info) * 2] = '\0';
 		strcpy(info, temp);
@@ -1534,8 +1534,8 @@ int RK_wifi_get_mac(char *wifi_mac) {
 		return -1;
 	}
 
-	sprintf(
-	    mac_addr, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)ifr_mac.ifr_hwaddr.sa_data[0],
+	snprintf( mac_addr, sizeof(mac_addr),
+		"%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char)ifr_mac.ifr_hwaddr.sa_data[0],
 	    (unsigned char)ifr_mac.ifr_hwaddr.sa_data[1], (unsigned char)ifr_mac.ifr_hwaddr.sa_data[2],
 	    (unsigned char)ifr_mac.ifr_hwaddr.sa_data[3], (unsigned char)ifr_mac.ifr_hwaddr.sa_data[4],
 	    (unsigned char)ifr_mac.ifr_hwaddr.sa_data[5]);
@@ -1610,7 +1610,7 @@ static int get_pid(const char Name[]) {
 	FILE *pFile = NULL;
 	int pid = 0;
 
-	sprintf(cmd, "pidof %s", name);
+	snprintf(cmd, sizeof(cmd), "pidof %s", name);
 	pFile = popen(cmd, "r");
 	if (pFile != NULL) {
 		while (fgets(cmdresult, sizeof(cmdresult), pFile)) {

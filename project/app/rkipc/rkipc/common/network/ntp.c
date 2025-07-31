@@ -212,7 +212,7 @@ int rkipc_ntp_update(const char *ntp_server_addr) {
 
 			local = localtime((time_t *)&tv.tv_sec);
 			strftime(dateBuf, 64, "%Y-%m-%d %H:%M:%S", local);
-			sprintf(cmd, "busybox date -s \"%s\" > /dev/null", dateBuf);
+			snprintf(cmd, sizeof(cmd), "busybox date -s \"%s\" > /dev/null", dateBuf);
 			system(cmd);
 
 			// LOG_DEBUG("%s \n", ctime((time_t *) &tv.tv_sec));

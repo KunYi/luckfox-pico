@@ -71,8 +71,8 @@ int rk_param_get_double(const char *entry, double default_val) {
 }
 
 int rk_param_set_int(const char *entry, int val) {
-	char tmp[8];
-	sprintf(tmp, "%d", val);
+	char tmp[8] = {'\0'};
+	snprintf(tmp, sizeof(tmp), "%d", val);
 	pthread_mutex_lock(&g_param_mutex);
 	iniparser_set(g_ini_d_, entry, tmp);
 	pthread_mutex_unlock(&g_param_mutex);

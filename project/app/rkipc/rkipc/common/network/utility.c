@@ -134,7 +134,7 @@ int get_ps_pid(const char Name[]) {
 	strcpy(name, Name);
 	name[31] = '\0';
 
-	sprintf(cmd, "pidof %s", name);
+	snprintf(cmd, sizeof(cmd), "pidof %s", name);
 
 	pFile = popen(cmd, "r");
 	if (pFile != NULL) {
@@ -155,13 +155,13 @@ int kill_task(char *name) {
 		return 0;
 
 	memset(cmd, 0, 128);
-	sprintf(cmd, "killall %s", name);
+	snprintf(cmd, sizeof(cmd), "killall %s", name);
 
 	exec_command_system(cmd);
 
 	if (get_ps_pid(name)) {
 		memset(cmd, 0, 128);
-		sprintf(cmd, "killall -9 %s", name);
+		snprintf(cmd, sizeof(cmd), "killall -9 %s", name);
 		exec_command_system(cmd);
 	}
 

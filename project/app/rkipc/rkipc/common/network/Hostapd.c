@@ -74,7 +74,7 @@ int _create_hostapd_file(const char *ap, const char *ssid, const char *psk) {
 	if (NULL == fp)
 		return -1;
 
-	sprintf(cmdline, "interface=%s\n", ap);
+	snprintf(cmdline, sizeof(cmdline), "interface=%s\n", ap);
 	fputs(cmdline, fp);
 	fputs("ctrl_interface=/var/run/hostapd\n", fp);
 	fputs("driver=nl80211\n", fp);
@@ -104,17 +104,18 @@ int _create_hostapd_file(const char *ap, const char *ssid, const char *psk) {
 bool _creat_dnsmasq_file() {
 	FILE *fp;
 	static char DNSMASQ_CONF_DIR[] = "/userdata/bin/dnsmasq.conf";
-	static char SOFTAP_INTERFACE_STATIC_IP[] = "10.201.126.1";
+	static char SOFTAP_INTERFACE_STATIC_IP[] = "10.222.77.1";
 	fp = fopen(DNSMASQ_CONF_DIR, "wt+");
 	if (NULL == fp)
 		return false;
 
+	// TODO: need to check the permissions with 'root'
 	fputs("user=root\n", fp);
 	fputs("listen-address=", fp);
 	fputs(SOFTAP_INTERFACE_STATIC_IP, fp);
 	fputs("\n", fp);
-	fputs("dhcp-range=10.201.126.50,10.201.126.150\n", fp);
-	fputs("server=/google/8.8.8.8\n", fp);
+	fputs("dhcp-range=10.222.77.50,10.222.77.150\n", fp);
+	fputs("server=/google/8.8.8.8,8.8.4.4\n", fp);
 	fclose(fp);
 	return true;
 }
@@ -125,20 +126,20 @@ int _wifi_rtl_start_hostapd(const char *ap, const char *ssid, const char *psk, c
 	static char HOSTAPD_CONF_DIR[] = "/userdata/bin/hostapd.conf";
 	_create_hostapd_file(ap, ssid, psk);
 
-	sprintf(cmdline, "ifconfig %s up", ap);
+	snprintf(cmdline, sizeof(cmdline), "ifconfig %s up", ap);
 	console_run(cmdline);
-	sprintf(cmdline, "ifconfig %s 10.201.126.1 netmask 255.255.255.0", ap);
+	snprintf(cmdline, sizeof(cmdline), "ifconfig %s 10.201.126.1 netmask 255.255.255.0", ap);
 	console_run(cmdline);
-	sprintf(cmdline, "route add default gw %s %s", ip, ap);
+	snprintf(cmdline, sizeof(cmdline), "route add default gw %s %s", ip, ap);
 	console_run(cmdline);
 
 	// _creat_dnsmasq_file();
 	memset(cmdline, 0, sizeof(cmdline));
-	sprintf(cmdline, "dnsmasq -C %s --interface=%s", DNSMASQ_CONF_DIR, ap);
+	snprintf(cmdline, sizeof(cmdline), "dnsmasq -C %s --interface=%s", DNSMASQ_CONF_DIR, ap);
 	console_run(cmdline);
 
 	memset(cmdline, 0, sizeof(cmdline));
-	sprintf(cmdline, "hostapd %s &", HOSTAPD_CONF_DIR);
+	snprintf(cmdline, sizeof(cmdline), "hostapd %s &", HOSTAPD_CONF_DIR);
 	console_run(cmdline);
 
 	int time = 100;

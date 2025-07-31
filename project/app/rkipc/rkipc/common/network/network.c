@@ -94,7 +94,7 @@ static void parseRoutes(struct nlmsghdr *nlHdr, struct route_info *rtInfo, char 
 		}
 	}
 	if (strstr((char *)inet_ntoa(rtInfo->dstAddr), "0.0.0.0"))
-		sprintf(gateway, (char *)inet_ntoa(rtInfo->gateWay));
+		snprintf(gateway, sizeof(gateway), (char *)inet_ntoa(rtInfo->gateWay));
 	free(tempBuf);
 	return;
 }
@@ -755,7 +755,7 @@ int rk_nic_state_get(const char *ifname) {
 
 	memset(buffer, 0, BUFSIZ);
 	memset(cmd, 0, 100);
-	sprintf(cmd, "ifconfig -a | grep %s", ifname);
+	snprintf(cmd, sizeof(cmd), "ifconfig -a | grep %s", ifname);
 	read_fp = popen(cmd, "r");
 	if (read_fp != NULL) {
 		chars_read = fread(buffer, sizeof(char), BUFSIZ - 1, read_fp);
@@ -771,7 +771,7 @@ int rk_nic_state_get(const char *ifname) {
 	if (ret == 1) {
 		memset(buffer, 0, BUFSIZ);
 		memset(cmd, 0, 100);
-		sprintf(cmd, "ifconfig |grep %s", ifname);
+		snprintf(cmd, sizeof(cmd), "ifconfig |grep %s", ifname);
 		read_fp = popen(cmd, "r");
 		if (read_fp != NULL) {
 			chars_read = fread(buffer, sizeof(char), BUFSIZ - 1, read_fp);
@@ -788,7 +788,7 @@ int rk_nic_state_get(const char *ifname) {
 	if (ret == 2) {
 		memset(buffer, 0, BUFSIZ);
 		memset(cmd, 0, 100);
-		sprintf(cmd, "ifconfig %s | grep RUNNING | awk '{print $3}'", ifname);
+		snprintf(cmd, sizeof(cmd), "ifconfig %s | grep RUNNING | awk '{print $3}'", ifname);
 		read_fp = popen(cmd, "r");
 		if (read_fp != NULL) {
 			chars_read = fread(buffer, sizeof(char), BUFSIZ - 1, read_fp);
