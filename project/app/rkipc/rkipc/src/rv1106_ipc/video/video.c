@@ -16,6 +16,12 @@
 #endif
 #define LOG_TAG "video.c"
 
+#if defined(__arch64__)
+#define U64toPointerConvert(x) (x)
+#elif defined(__arch32__) || defined(__arm__)
+#define U64toPointerConvert(x)  (uint32_t)(x)
+#endif
+
 #define RKISP_MAINPATH 0
 #define RKISP_SELFPATH 1
 #define RKISP_FBCPATH 2
@@ -68,6 +74,12 @@ typedef enum rkCOLOR_INDEX_E {
 	RGN_COLOR_LUT_INDEX_0 = 0,
 	RGN_COLOR_LUT_INDEX_1 = 1,
 } COLOR_INDEX_E;
+
+extern int rk_osd_privacy_mask_restart(void);
+int rkipc_ivs_init(void);
+int rkipc_ivs_deinit(void);
+int rkipc_osd_draw_nn_init(void);
+int rkipc_osd_draw_nn_deinit(void);
 
 #if HAS_VO
 static void *get_vi_send_vo(void *arg) {
@@ -192,12 +204,12 @@ static void *rkipc_get_vi_send_jpeg(void *arg) {
 	ret = RK_MPI_CAL_TDE_GetPicBufferSize(&Dst_stPicBufAttr, &Dst_stMbPicCalResult);
 	if (ret != RK_SUCCESS) {
 		LOG_ERROR("get picture buffer size failed. err 0x%x\n", ret);
-		return;
+		return NULL;
 	}
 	ret = RK_MPI_SYS_MmzAlloc(&dstBlk, RK_NULL, RK_NULL, Dst_stMbPicCalResult.u32MBSize);
 	if (ret != RK_SUCCESS) {
 		LOG_ERROR("RK_MPI_SYS_MmzAlloc err 0x%x\n", ret);
-		return;
+		return NULL;
 	}
 
 	pstSrc.enColorFmt = RK_FMT_YUV420SP;
@@ -218,7 +230,7 @@ static void *rkipc_get_vi_send_jpeg(void *arg) {
 	if (ret != RK_SUCCESS) {
 		LOG_ERROR("RK_TDE_Open fail %x\n", ret);
 		RK_MPI_SYS_Free(dstBlk);
-		return;
+		return NULL;
 	}
 	while (g_video_run_) {
 		if (!send_jpeg_cnt) {
@@ -548,7 +560,7 @@ static void *rkipc_get_vi_2_send(void *arg) {
 		ret = RK_MPI_VI_GetChnFrame(pipe_id_, VIDEO_PIPE_2, &stViFrame, 1000);
 		if (ret == RK_SUCCESS) {
 			void *data = RK_MPI_MB_Handle2VirAddr(stViFrame.stVFrame.pMbBlk);
-			uint8_t *phy_addr = (uint8_t *)RK_MPI_MB_Handle2PhysAddr(stViFrame.stVFrame.pMbBlk);
+			uint8_t *phy_addr = (uint8_t *)U64toPointerConvert(RK_MPI_MB_Handle2PhysAddr(stViFrame.stVFrame.pMbBlk));
 			rkipc_rockiva_write_nv12_frame_by_phy_addr(
 			    stViFrame.stVFrame.u32Width, stViFrame.stVFrame.u32Height, loopCount, phy_addr);
 			ret = RK_MPI_VI_ReleaseChnFrame(pipe_id_, VIDEO_PIPE_2, &stViFrame);
@@ -1769,7 +1781,7 @@ int rkipc_pipe_jpeg_deinit() {
 	return ret;
 }
 
-int rkipc_ivs_init() {
+int rkipc_ivs_init(void) {
 	int ret;
 	int video_width = rk_param_get_int("video.2:width", -1);
 	int video_height = rk_param_get_int("video.2:height", -1);
@@ -1828,7 +1840,7 @@ int rkipc_ivs_init() {
 	return 0;
 }
 
-int rkipc_ivs_deinit() {
+int rkipc_ivs_deinit(void) {
 	int ret;
 	pthread_join(get_ivs_result_thread, NULL);
 	// IVS
@@ -1936,7 +1948,7 @@ static void *rkipc_get_nn_update_osd(void *arg) {
 			         UPALIGNTO16(video_width), UPALIGNTO16(video_height));
 			continue;
 		}
-		memset((void *)stCanvasInfo.u64VirAddr, 0,
+		memset((void *)U64toPointerConvert(stCanvasInfo.u64VirAddr), 0,
 		       stCanvasInfo.u32VirWidth * stCanvasInfo.u32VirHeight >> 2);
 		// draw
 		for (int i = 0; i < ba_result.objNum; i++) {
@@ -1970,21 +1982,21 @@ static void *rkipc_get_nn_update_osd(void *arg) {
 			}
 			// LOG_DEBUG("i is %d, x,y,w,h is %d,%d,%d,%d\n", i, x, y, w, h);
 			if (object->objInfo.type == ROCKIVA_OBJECT_TYPE_PERSON) {
-				draw_rect_2bpp((RK_U8 *)stCanvasInfo.u64VirAddr, stCanvasInfo.u32VirWidth,
-				               stCanvasInfo.u32VirHeight, x, y, w, h, line_pixel,
-				               RGN_COLOR_LUT_INDEX_0);
+				draw_rect_2bpp((RK_U8 *)U64toPointerConvert(stCanvasInfo.u64VirAddr),
+					stCanvasInfo.u32VirWidth, stCanvasInfo.u32VirHeight,
+					x, y, w, h, line_pixel, RGN_COLOR_LUT_INDEX_0);
 			} else if (object->objInfo.type == ROCKIVA_OBJECT_TYPE_FACE) {
-				draw_rect_2bpp((RK_U8 *)stCanvasInfo.u64VirAddr, stCanvasInfo.u32VirWidth,
-				               stCanvasInfo.u32VirHeight, x, y, w, h, line_pixel,
-				               RGN_COLOR_LUT_INDEX_0);
+				draw_rect_2bpp((RK_U8 *)U64toPointerConvert(stCanvasInfo.u64VirAddr),
+				        stCanvasInfo.u32VirWidth, stCanvasInfo.u32VirHeight,
+				        x, y, w, h, line_pixel, RGN_COLOR_LUT_INDEX_0);
 			} else if (object->objInfo.type == ROCKIVA_OBJECT_TYPE_VEHICLE) {
-				draw_rect_2bpp((RK_U8 *)stCanvasInfo.u64VirAddr, stCanvasInfo.u32VirWidth,
-				               stCanvasInfo.u32VirHeight, x, y, w, h, line_pixel,
-				               RGN_COLOR_LUT_INDEX_1);
+				draw_rect_2bpp((RK_U8 *)U64toPointerConvert(stCanvasInfo.u64VirAddr),
+				               stCanvasInfo.u32VirWidth, stCanvasInfo.u32VirHeight,
+				               x, y, w, h, line_pixel, RGN_COLOR_LUT_INDEX_1);
 			} else if (object->objInfo.type == ROCKIVA_OBJECT_TYPE_NON_VEHICLE) {
-				draw_rect_2bpp((RK_U8 *)stCanvasInfo.u64VirAddr, stCanvasInfo.u32VirWidth,
-				               stCanvasInfo.u32VirHeight, x, y, w, h, line_pixel,
-				               RGN_COLOR_LUT_INDEX_1);
+				draw_rect_2bpp((RK_U8 *)U64toPointerConvert(stCanvasInfo.u64VirAddr),
+				               stCanvasInfo.u32VirWidth, stCanvasInfo.u32VirHeight,
+				               x, y, w, h, line_pixel, RGN_COLOR_LUT_INDEX_1);
 			}
 			// LOG_INFO("draw rect time-consuming is %lld\n",(rkipc_get_curren_time_ms() -
 			// 	last_ba_result_time));
@@ -2003,7 +2015,7 @@ static void *rkipc_get_nn_update_osd(void *arg) {
 	return 0;
 }
 
-int rkipc_osd_draw_nn_init() {
+int rkipc_osd_draw_nn_init(void) {
 	LOG_DEBUG("start\n");
 	int ret = 0;
 	RGN_HANDLE RgnHandle = DRAW_NN_OSD_ID;
@@ -2072,7 +2084,7 @@ int rkipc_osd_draw_nn_init() {
 	return ret;
 }
 
-int rkipc_osd_draw_nn_deinit() {
+int rkipc_osd_draw_nn_deinit(void) {
 	LOG_DEBUG("%s\n", __func__);
 	int ret = 0;
 	if (g_nn_osd_run_) {
